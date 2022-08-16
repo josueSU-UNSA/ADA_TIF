@@ -6,8 +6,7 @@
 #include <list>
 #include<math.h>
 using namespace std;
-class Red
-{
+class Red{
 public:
     vector<int> nodos;
     vector<vector<int>> relaciones;
@@ -20,6 +19,8 @@ public:
     void imprimir();
     int get_A(int i, int j);//Retorna el peso de la arista entre 2 nodos
     int get_K(int i_j);
+    int get_A(list<int>*, list<int>*);
+    int get_K(list<int>*);
     void Louvain_Comunidades();
     list<int> *get_Listaadyacencia();
     bool get_Delta();
@@ -65,10 +66,12 @@ void Red::agregar_relacion(int a, int b, int v){
 void Red::Louvain_Comunidades(){
     double Q;
     float sumatoria=0;
-    vector<list<int>*> Comunidades;
+    vector<list<int>*> C_nodos;
+    list<list<int>*> Comunidades;
     for (int k_2 = 0; k_2 < nodos.size(); k_2++){
         list<int> *m=new list<int>;
-        m->push_back(nodos[k_2]);
+        m->push_back(k_2);
+        C_nodos.push_back(m);
         Comunidades.push_back(m);
         sumatoria+=((float)relaciones[k_2][k_2]-((2*(float)get_K(nodos[k_2]))/(2*m_num_edges)));
     }
@@ -78,80 +81,64 @@ void Red::Louvain_Comunidades(){
     for(auto it=Comunidades.begin(); it!=Comunidades.end(); it++){
         cout<<*((*it)->begin())<<" ";
     }*/
-    list<int>* L_adyacencia=get_Listaadyacencia();
-    int i=0;
-    while (i<nodos.size()){
-        list<int>* comunidad_i=Comunidades[i];
-        auto resul=L_adyacencia[i].begin();
-        float dif_Q_max=0;
-        for (auto it = L_adyacencia[i].begin(); it != L_adyacencia[i].end(); it++){
-            if(comunidad_i!=Comunidades[*it]){
-                //Paso 1: Sacar i de su comunidad
-                list<int>* comunidad_j=Comunidades[*it];
-                auto eliminador=find(comunidad_i->begin(),comunidad_i->end(),nodos[i]);
-                comunidad_i->erase(eliminador);
-                //Paso 2: Diferencia de Q
-                float k_i=get_K(nodos[i]);
-                float in=0;
-                float tot=0;
-                float k_i_in=0;
-                for (auto it = comunidad_j->begin(); it != comunidad_j->end(); it++){
-                    tot+=get_K(*it);
-                    k_i_in+=get_A(nodos[i],*it);
-                    for (auto it2 = comunidad_j->begin(); it2 != comunidad_j->end(); it2++)
-                        in+=get_A(*it,*it2);    
-                }
-                cout<<k_i<<" --- "<<in<<" --- "<<tot<<" --- "<<k_i_in<<endl;
+    list<int>*adyacencia=get_Listaadyacencia();
+    auto comunidad_i=Comunidades.begin();
+    while (comunidad_i!=Comunidades.end()){
+        if((*comunidad_i)!=nullptr){
+            float dif_Q_max=0;
+            list<int>* resul=nullptr;
+            list<int> caminos;
+            for (auto bus = (*comunidad_i)->begin();  bus!= (*comunidad_i)->end(); bus++)
+                for (auto ad = adyacencia[*bus].begin(); ad != adyacencia[*bus].end(); ad++)
+                    if(find((*comunidad_i)->begin(),(*comunidad_i)->end(),*ad)==(*comunidad_i)->end())
+                        caminos.push_back(*ad);
+            //Paso 1: Sacar i de su comunidad
+            list<int>* copy=(*comunidad_i);
+            (*comunidad_i)=nullptr;
+            //Paso 2: Diferencia de Q
+            for (auto it = caminos.begin(); it != caminos.end(); it++){
+                list<int>* comunidad_j=C_nodos[*it];
+                float k_i=get_K(copy);
+                float in=get_A(comunidad_j,comunidad_j);
+                float tot=get_K(comunidad_j);
+                float k_i_in=get_A(copy,comunidad_j);
+                //cout<<k_i<<" --- "<<in<<" --- "<<tot<<" --- "<<k_i_in<<endl;
                 float dif_Q=(((in+(2*k_i_in))/(2*m_num_edges))-pow(((tot+k_i)/(2*m_num_edges)),2))-((in/(2*m_num_edges))-pow((tot/(2*m_num_edges)),2)-pow((k_i/(2*m_num_edges)),2));
                 if(dif_Q>dif_Q_max){
-                    resul=it;
+                    resul=comunidad_j;
                     dif_Q_max=dif_Q;
                 }
-                comunidad_i->push_front(nodos[i]);
+            }
+            if(dif_Q_max!=0){
+                Q+=dif_Q_max;
+                for (auto it1 = copy->begin(); it1 != copy->end(); it1++){
+                    resul->push_back(*it1);
+                    C_nodos[*it1]=resul;
+                    cout<<nodos[*it1]<<" ";
+                }
+                cout<<" ------> ";
+                for (auto it1 = resul->begin(); it1 != resul->end(); it1++){
+                    cout<<nodos[*it1]<<" ";
+                }
+                cout<<endl;
+                delete copy;
+            }
+            else{
+                (*comunidad_i)=copy;
             }
         }
-        if(dif_Q_max!=0){
-            Q+=dif_Q_max;
-            auto eliminador=find(comunidad_i->begin(),comunidad_i->end(),nodos[i]);
-            Comunidades[i]->erase(eliminador);
-            Comunidades[*resul]->push_back(nodos[i]);
-            for (auto it1 = Comunidades[i]->begin(); it1 != Comunidades[i]->end(); it1++){
-                cout<<*it1<<" ";
-            }
-            cout<<" ------ ";
-            for (auto it1 = Comunidades[*resul]->begin(); it1 != Comunidades[*resul]->end(); it1++){
-                cout<<*it1<<" ";
-            }
+        comunidad_i++;
+    }
+    //Impresion de las comunidades
+    int contador=1;
+    for (auto i = Comunidades.begin(); i != Comunidades.end(); i++)
+        if((*i)!=nullptr){
+            cout<<"Comunidad "<<contador<<": ";
+            for (auto j = (*i)->begin(); j != (*i)->end(); j++)
+                cout<<nodos[*j]<<" ";
             cout<<endl;
-            Comunidades[i]=Comunidades[*resul];
-        }
-        else{
-            comunidad_i->push_back(nodos[i]);
-        }
-        i++;
-    }
-    //Esto sirve para separar Comunidades entre si, ya que al usar punteros se señalan a si mismos y
-    //las comunidades se repiten
-    list<list<int>*> Comunidades_resul;
-    for (auto it_1 = Comunidades.begin(); it_1 != Comunidades.end(); it_1++){
-        list<int>*punt=(*it_1);
-        bool b=true;
-        for (auto it_2 = Comunidades_resul.begin(); it_2 != Comunidades_resul.end(); it_2++){
-            if(punt==(*it_2)){
-                b=false;
-            }
-        }
-        if(b){
-            Comunidades_resul.push_back(*it_1);
-        }
-    }
-    //Trabajo terminado amigos;
-    for (auto it_1 = Comunidades_resul.begin(); it_1 != Comunidades_resul.end(); it_1++){
-        for (auto it_2 = (*it_1)->begin(); it_2 != (*it_1)->end(); it_2++){
-            cout<<*it_2<<" ";
-        }
-        cout<<endl;
-    }
+            contador++;
+        } 
 }
 list<int> *Red::get_Listaadyacencia(){
     list<int>*punt=new list<int>[nodos.size()];
@@ -164,33 +151,9 @@ list<int> *Red::get_Listaadyacencia(){
     }
     return punt;
 }
-void Red::imprimir(){
-    for (int i = 0; i <= nodos.size(); i++){
-        for (int j = 0; j <= nodos.size(); j++){
-            if(i==0&&j==0)
-                cout<<" "<<'\t';
-            else if(i*j==0){
-                if(i==0){
-                    cout<<nodos[j-1]<<'\t';
-                }
-                else{
-                    cout<<nodos[i-1]<<'\t';
-                }
-            }
-            else
-                cout<<relaciones[i-1][j-1]<<'\t';
-        }
-        cout<<endl;
-    }
-}
 int Red::get_A(int i, int j){
-    
-
     int index_i=-1,index_j=-1;
-    
     auto it=this->nodos.begin();
-    
-    
     int count=0;
     for(;it!=this->nodos.end();it++){
         if(*it==i)index_i=count;
@@ -214,6 +177,42 @@ int Red::get_K(int i_j){
         count+=*(it_row);
     }
     return count;
+}
+int Red::get_A(list<int>* comunidad_i, list<int>* comunidad_j){
+    int resul=0;
+    for (auto it = comunidad_i->begin(); it!= comunidad_i->end(); it++)
+        for (auto it_2 = comunidad_j->begin(); it_2!= comunidad_j->end(); it_2++)
+            resul+=relaciones[*it][*it_2];
+    return resul;
+}
+int Red::get_K(list<int>* comunidad){
+    int resul=0;
+    for (auto it = comunidad->begin(); it !=comunidad->end(); it++){
+        auto it_row=this->relaciones[*it].begin();
+        for(;it_row!=this->relaciones[*it].end();it_row++){
+            resul+=*(it_row);
+        }
+    }
+    return resul;
+}
+void Red::imprimir(){
+    for (int i = 0; i <= nodos.size(); i++){
+        for (int j = 0; j <= nodos.size(); j++){
+            if(i==0&&j==0)
+                cout<<" "<<'\t';
+            else if(i*j==0){
+                if(i==0){
+                    cout<<nodos[j-1]<<'\t';
+                }
+                else{
+                    cout<<nodos[i-1]<<'\t';
+                }
+            }
+            else
+                cout<<relaciones[i-1][j-1]<<'\t';
+        }
+        cout<<endl;
+    }
 }
 Red::~Red(){}
 int main(){
