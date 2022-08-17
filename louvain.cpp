@@ -202,23 +202,35 @@ void Red::Louvain_Comunidades()
             output << "\t"
                    << "\t"
                    << "edge[color=\"#" << color << "\"];" << endl;
-            vector<int> nodes;
+            vector<int> communityNodes;
             for (auto subindex = (*index)->begin(); subindex != (*index)->end(); subindex++)
             {
-                nodes.push_back(nodos[*subindex]);
+                communityNodes.push_back(nodos[*subindex]);
             }
-            for (int it = 0; it < nodes.size(); it++)
+            for (int i = 0; i < this->relaciones.size(); i++)
             {
-                if (it != nodes.size() - 1)
+                for (int j = i; j < this->relaciones.size(); j++)
                 {
-                    output << "\t"
-                           << "\t" << nodes[it] << "--{";
-                    for (int it2 = it + 1; it2 < nodes.size(); it2++)
+                    if (relaciones[i][j] == 1)
                     {
-
-                        output << nodes[it2] << " ";
+                        for (int index = 0; index < communityNodes.size(); index++)
+                        {
+                            if (communityNodes.size() == 1)
+                            {
+                                output << "\t" << communityNodes[index] << ";" << endl;
+                            }
+                            else if (communityNodes.size() > 1 && nodos[i] == communityNodes[index])
+                            {
+                                for (int index2 = 0; index2 < communityNodes.size(); index2++)
+                                {
+                                    if (nodos[j] == communityNodes[index2])
+                                    {
+                                        output << "\t" << nodos[i] << "--" << nodos[j] << ";" << endl;
+                                    }
+                                }
+                            }
+                        }
                     }
-                    output << "};" << endl;
                 }
             }
             output << "\t"
@@ -355,10 +367,10 @@ int main()
     }
     cout << "Representacion matricial de nuestro objeto Red" << endl;
     primero.imprimir();
-    for (int k = 10; k > 5; k--)
-    {
-        primero.agregar_relacion(k, k - 1, 1);
-    }
+    // for (int k = 10; k > 5; k--)
+    // {
+    //     primero.agregar_relacion(k, k - 1, 1);
+    // }
 
     primero.agregar_relacion(5, 7, 1);
     primero.agregar_relacion(10, 8, 1);
